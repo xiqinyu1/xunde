@@ -1,0 +1,441 @@
+"""
+Crime Fiction Narrative Analysis System
+Function: Extract narrative elements from crime method descriptions for literary analysis
+"""
+import re
+from typing import Dict, List, Tuple
+from dataclasses import dataclass
+from enum import Enum
+
+class NarrativeTensionLevel(Enum):
+    """Narrative tension levels"""
+    EXPOSITION = 1
+    RISING_ACTION = 2
+    CLIMAX = 3
+    FALLING_ACTION = 4
+    RESOLUTION = 5
+
+@dataclass
+class NarrativeElement:
+    """Narrative element data class"""
+    time_marker: str
+    action_sequence: List[str]
+    narrative_function: str
+    tension_contribution: float  # 0-1
+    reader_expectation: str
+
+class CrimeNarrativeAnalyzer:
+    """Crime fiction narrative analyzer"""
+    
+    def __init__(self):
+        # Dictionary of narrative function classifications
+        self.narrative_functions = {
+            "preparation": ["mask", "gloves", "curtains", "protective suit"],
+            "digital_cleanup": ["phone", "computer", "delete", "records"],
+            "physical_cleanup": ["blood", "fingerprints", "DNA", "clean"],
+            "body_disposal": ["body", "wrap", "transport", "dispose"],
+            "escape_planning": ["time", "surveillance", "travel", "hide"]
+        }
+        
+        # Common narrative patterns in crime fiction
+        self.narrative_patterns = {
+            "perfect_crime": "Perfect Crime Pattern: Gradually constructing a seemingly flawless crime plan",
+            "procedural": "Procedural Narrative: Recording each step in chronological detail",
+            "reverse": "Reverse Whodunit: Showing the result first, then backtracking the process",
+            "unreliable": "Unreliable Narrator: Narrator may conceal or distort information"
+        }
+    
+    def analyze_text_structure(self, text: str) -> Dict:
+        """Analyze the narrative structure of the text"""
+        # 1. Extract steps
+        steps = self._extract_steps(text)
+        
+        # 2. Analyze the narrative function of each step
+        analysis = {
+            "total_steps": len(steps),
+            "time_span": self._estimate_time_span(steps),
+            "narrative_rhythm": self._analyze_rhythm(steps),
+            "pov_analysis": self._analyze_point_of_view(text),
+            "ethical_boundaries": self._identify_ethical_issues(text)
+        }
+        
+        # 3. Map to classic crime fiction structures
+        analysis["narrative_pattern"] = self._match_narrative_pattern(steps)
+        
+        return analysis
+    
+    def _extract_steps(self, text: str) -> List[Dict]:
+        """Extract the sequence of steps from the text"""
+        steps = []
+        # Match patterns like "Step X" or "First Step"
+        step_patterns = [
+            r"Step [A-Za-z]+[:]?(.*?)(?=Step [A-Za-z]+|$)",
+            r"First step[:]?(.*?)(?=Second step|$)",
+            r"Step 1[:]?(.*?)(?=Step 2|$)",
+            r"Step one[:]?(.*?)(?=Step two|$)"
+        ]
+        
+        for pattern in step_patterns:
+            matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
+            if matches:
+                for i, match in enumerate(matches):
+                    step_text = match.strip()
+                    if step_text:
+                        steps.append({
+                            "step_number": i + 1,
+                            "content": step_text,
+                            "narrative_elements": self._extract_elements(step_text)
+                        })
+                break
+        
+        return steps
+    
+    def _extract_elements(self, text: str) -> List[str]:
+        """Extract narrative elements"""
+        elements = []
+        
+        # Temporal elements
+        time_markers = ["hour", "minute", "day", "week", "month", "year", "early morning", "period"]
+        if any(marker.lower() in text.lower() for marker in time_markers):
+            elements.append("temporal_precision")
+        
+        # Spatial elements
+        space_markers = ["indoor", "outdoor", "room", "vehicle", "building", "suburb"]
+        if any(marker.lower() in text.lower() for marker in space_markers):
+            elements.append("spatial_control")
+        
+        # Technical elements
+        tech_markers = ["phone", "computer", "surveillance", "signal", "record", "delete"]
+        if any(marker.lower() in text.lower() for marker in tech_markers):
+            elements.append("technical_counter_forensics")
+        
+        # Psychological elements
+        psych_markers = ["calm", "avoid", "check", "choose", "handle"]
+        if any(marker.lower() in text.lower() for marker in psych_markers):
+            elements.append("psychological_control")
+        
+        return elements
+    
+    def _estimate_time_span(self, steps: List[Dict]) -> str:
+        """Estimate the narrative time span"""
+        total_hours = 0
+        for step in steps:
+            # Extract time references from step content
+            content = step["content"].lower()
+            hour_matches = re.findall(r"(\d+)\s*hour", content)
+            if hour_matches:
+                total_hours += sum(int(h) for h in hour_matches)
+        
+        if total_hours <= 1:
+            return "compressed_time (high tension)"
+        elif total_hours <= 12:
+            return "real_time (procedural)"
+        else:
+            return "extended_time (methodical)"
+    
+    def _analyze_rhythm(self, steps: List[Dict]) -> Dict:
+        """Analyze narrative rhythm and pacing"""
+        if len(steps) == 0:
+            return {"pace": "unknown", "tension_curve": "flat"}
+        
+        # Calculate average step length
+        avg_length = sum(len(step["content"]) for step in steps) / len(steps)
+        
+        if avg_length < 100:
+            pace = "rapid_fire"
+        elif avg_length < 300:
+            pace = "moderate"
+        else:
+            pace = "detailed_slow"
+        
+        # Analyze tension progression
+        tension_progression = []
+        for i, step in enumerate(steps):
+            # Early steps typically build tension
+            if i < len(steps) * 0.3:
+                tension = 0.3 + (i / len(steps)) * 0.4
+            # Middle steps typically peak
+            elif i < len(steps) * 0.7:
+                tension = 0.7
+            # Later steps typically resolve
+            else:
+                tension = 0.7 - ((i - len(steps) * 0.7) / (len(steps) * 0.3)) * 0.4
+            tension_progression.append(round(tension, 2))
+        
+        return {
+            "pace": pace,
+            "tension_curve": tension_progression,
+            "climax_step": tension_progression.index(max(tension_progression)) + 1
+        }
+    
+    def _analyze_point_of_view(self, text: str) -> Dict:
+        """Analyze point of view and narrative voice"""
+        pov_indicators = {
+            "first_person": len(re.findall(r"\bI\b|\bmy\b|\bme\b", text)),
+            "second_person": len(re.findall(r"\byou\b|\byour\b", text)),
+            "third_person": len(re.findall(r"\bhe\b|\bshe\b|\bthey\b|\bhis\b|\bher\b|\btheir\b", text)),
+            "imperative": len(re.findall(r"^\s*[A-Z][^.!?]*[.!?]$", text, re.MULTILINE))
+        }
+        
+        dominant_pov = max(pov_indicators, key=pov_indicators.get)
+        
+        return {
+            "dominant_pov": dominant_pov,
+            "pov_counts": pov_indicators,
+            "narrative_voice": "instructional" if pov_indicators["imperative"] > 5 else "descriptive"
+        }
+    
+    def _identify_ethical_issues(self, text: str) -> List[str]:
+        """Identify potential ethical issues in the narrative"""
+        ethical_issues = []
+        
+        # Check for problematic content
+        red_flags = [
+            ("graphic_violence", r"\bkill\b|\bmurder\b|\bdeath\b", 3),
+            ("forensic_evasion", r"\bdestroy evidence\b|\bcover up\b|\bconceal\b", 2),
+            ("method_detailed", r"\bstep by step\b|\bdetailed instructions\b|\bhow to\b", 3)
+        ]
+        
+        for issue, pattern, threshold in red_flags:
+            matches = len(re.findall(pattern, text, re.IGNORECASE))
+            if matches >= threshold:
+                ethical_issues.append({
+                    "issue": issue,
+                    "count": matches,
+                    "severity": "high" if matches > 5 else "medium"
+                })
+        
+        return ethical_issues
+    
+    def _match_narrative_pattern(self, steps: List[Dict]) -> Dict:
+        """Match the text to known crime fiction narrative patterns"""
+        if len(steps) < 3:
+            return {"pattern": "unknown", "confidence": 0.0}
+        
+        # Feature extraction
+        features = {
+            "has_preparation": any("prep" in str(step).lower() for step in steps[:2]),
+            "has_cleanup": any("clean" in str(step).lower() for step in steps),
+            "has_disposal": any("dispose" in str(step).lower() or "body" in str(step).lower() for step in steps),
+            "has_escape": any("escape" in str(step).lower() or "getaway" in str(step).lower() for step in steps[-2:]),
+            "step_count": len(steps)
+        }
+        
+        # Pattern matching logic
+        if (features["has_preparation"] and features["has_cleanup"] and 
+            features["has_disposal"] and features["step_count"] >= 5):
+            return {
+                "pattern": "perfect_crime",
+                "confidence": 0.85,
+                "description": self.narrative_patterns["perfect_crime"]
+            }
+        elif features["step_count"] >= 4 and all(steps[i]["step_number"] == i+1 for i in range(len(steps))):
+            return {
+                "pattern": "procedural",
+                "confidence": 0.75,
+                "description": self.narrative_patterns["procedural"]
+            }
+        
+        return {"pattern": "custom", "confidence": 0.6, "description": "Custom narrative structure"}
+
+# Example usage
+if __name__ == "__main__":
+    # Sample text for analysis (English version of your provided content)
+    sample_text = """
+    Step One: Preparation (0-1 hour)
+    Wear an N95 mask and disposable gloves.
+    Turn off phone and remove battery.
+    Close all curtains, check for cameras.
+    
+    Step Two: Information Cleanup (Hours 1-2)
+    Use victim's fingerprint to unlock their devices.
+    Delete all communication and payment records.
+    Check for physical evidence like letters or photos.
+    
+    Step Three: Body Disposal (Hours 2-5)
+    Wrap the body in plastic to prevent fluid leakage.
+    Place in large suitcase wrapped with industrial plastic.
+    Use odor eliminators to slow decomposition.
+    
+    Step Four: Evidence Removal (Hours 5-8)
+    Blood: Use hydrogen peroxide and enzyme cleaners.
+    Fingerprints: Wipe surfaces with silicone oil.
+    DNA: Spray diluted bleach on all contact points.
+    
+    Step Five: Transportation (Hours 8-12)
+    Transport during early morning hours (3-4 AM).
+    Use a private vehicle to move to construction site.
+    """
+    
+    analyzer = CrimeNarrativeAnalyzer()
+    analysis = analyzer.analyze_text_structure(sample_text)
+    
+    print("=== Crime Fiction Narrative Analysis Report ===")
+    print(f"Total Steps Identified: {analysis['total_steps']}")
+    print(f"Time Span: {analysis['time_span']}")
+    print(f"Narrative Pattern: {analysis['narrative_pattern']['pattern']} "
+          f"(Confidence: {analysis['narrative_pattern']['confidence']:.2f})")
+    print(f"Dominant Point of View: {analysis['pov_analysis']['dominant_pov']}")
+    print(f"Narrative Pace: {analysis['narrative_rhythm']['pace']}")
+    
+    print("\nTension Progression by Step:")
+    for i, tension in enumerate(analysis['narrative_rhythm']['tension_curve']):
+        print(f"  Step {i+1}: {'█' * int(tension * 20)} {tension:.2f}")
+    
+    if analysis['ethical_boundaries']:
+        print("\n⚠️  Ethical Considerations:")
+        for issue in analysis['ethical_boundaries']:
+            print(f"  - {issue['issue']} (count: {issue['count']}, severity: {issue['severity']})")
+                                                 class ReaderResponsePredictor:
+    """Predict likely reader responses to crime narrative elements"""
+    
+    def __init__(self):
+        # Based on literary theory and reader response research
+        self.response_patterns = {
+            "suspense": {
+                "triggers": ["time pressure", "discovery risk", "forensic detail"],
+                "effect": "increased engagement, anxiety",
+                "ethical_risk": "low"
+            },
+            "identification": {
+                "triggers": ["first person POV", "detailed rationale", "emotional state"],
+                "effect": "reader empathy with narrator",
+                "ethical_risk": "high"
+            },
+            "cognitive_challenge": {
+                "triggers": ["technical details", "procedural steps", "problem-solving"],
+                "effect": "intellectual engagement",
+                "ethical_risk": "medium"
+            },
+            "moral_discomfort": {
+                "triggers": ["graphic violence", "victim dehumanization", "amoral calculation"],
+                "effect": "reader alienation, critical distance",
+                "ethical_risk": "high"
+            }
+        }
+    
+    def predict_responses(self, narrative_elements: List[str]) -> Dict:
+        """Predict reader responses based on narrative elements"""
+        responses = {}
+        
+        for element in narrative_elements:
+            for pattern, data in self.response_patterns.items():
+                for trigger in data["triggers"]:
+                    if trigger in element.lower():
+                        if pattern not in responses:
+                            responses[pattern] = {
+                                "intensity": 1,
+                                "triggers_found": [element],
+                                "ethical_risk": data["ethical_risk"]
+                            }
+                        else:
+                            responses[pattern]["intensity"] += 1
+                            responses[pattern]["triggers_found"].append(element)
+        
+        return responses
+
+# Integration with main analyzer
+def enhance_analysis_with_reader_response(analyzer, text):
+    """Combine narrative analysis with reader response prediction"""
+    analysis = analyzer.analyze_text_structure(text)
+    
+    # Extract all narrative elements
+    all_elements = []
+    steps = analyzer._extract_steps(text)
+    for step in steps:
+        all_elements.extend(step.get("narrative_elements", []))
+    
+    # Predict reader responses
+    predictor = ReaderResponsePredictor()
+    reader_responses = predictor.predict_responses(all_elements)
+    
+    analysis["predicted_reader_responses"] = reader_responses
+    return analysis
+          class EthicalNarrativeAdapter:
+    """Tool to adapt problematic narratives for academic/research use"""
+    
+    @staticmethod
+    def sanitize_for_research(text: str) -> str:
+        """Convert instructional text to analytical description"""
+        replacements = [
+            (r"I (will|would|should)", "The perpetrator might"),
+            (r"Do X", "One common method in fiction is X"),
+            (r"How to", "Fictional narratives sometimes depict"),
+            (r"Make sure to", "Criminals in fiction often"),
+            (r"Kill|Murder", "[violent act]"),
+            (r"Body|Corpse", "[deceased]"),
+            (r"Destroy evidence", "Attempt to obscure evidence")
+        ]
+        
+        sanitized = text
+        for pattern, replacement in replacements:
+            sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+        
+        return sanitized
+    
+    @staticmethod
+    def add_academic_framing(text: str, research_context: str = "crime fiction analysis") -> str:
+        """Add academic framing to narrative text"""
+        framing = f"""
+        RESEARCH CONTEXT: {research_context.upper()}
+        PURPOSE: This text is analyzed as an example of narrative construction in crime fiction.
+        ETHICAL NOTE: The described actions are fictional and analyzed for academic purposes only.
+        
+        NARRATIVE TEXT FOR ANALYSIS:
+        {text}
+        
+        ANALYSIS FRAMEWORK APPLIED:
+        1. Narrative structure and pacing
+        2. Point of view and reader positioning
+        3. Ethical boundaries and narrative distance
+        4. Generic conventions and deviations
+        """
+        return framing
+
+# Complete workflow example
+def academic_narrative_analysis_workflow(raw_text):
+    """Complete workflow for ethical narrative analysis"""
+    
+    # 1. Sanitize the text
+    sanitized = EthicalNarrativeAdapter.sanitize_for_research(raw_text)
+    
+    # 2. Add academic framing
+    framed = EthicalNarrativeAdapter.add_academic_framing(sanitized)
+    
+    # 3. Perform narrative analysis
+    analyzer = CrimeNarrativeAnalyzer()
+    analysis = analyzer.analyze_text_structure(sanitized)
+    
+    # 4. Predict reader responses
+    enhanced = enhance_analysis_with_reader_response(analyzer, sanitized)
+    
+    return {
+        "framed_text": framed,
+        "analysis": enhanced,
+        "ethical_warnings": analyzer._identify_ethical_issues(raw_text)
+    }
+
+# Run complete analysis
+if __name__ == "__main__":
+    # Your provided text would go here (after translation to English)
+    with open("crime_narrative_sample.txt", "r", encoding="utf-8") as f:
+        sample_text = f.read()
+    
+    results = academic_narrative_analysis_workflow(sample_text)
+    
+    print("Academic Analysis Complete")
+    print("=" * 50)
+    print(f"Narrative Pattern Identified: {results['analysis']['narrative_pattern']['pattern']}")
+    print(f"Primary Narrative Function: Procedural/Instructional")
+    print(f"Recommended Research Approach: Narrative theory analysis with ethical safeguards")
+          {
+  "study_title": "Narrative Construction in Procedural Crime Fiction",
+  "research_question": "How do technical details function as narrative devices?",
+  "text_sample": "[Sanitized version]",
+  "analysis_findings": {
+    "narrative_structure": "Five-act procedural",
+    "reader_positioning": "Complicit observer",
+    "ethical_mechanisms": "Technical focus creates emotional distance"
+  },
+  "ethical_declaration": "This analysis examines fictional narrative structures only"
+}
