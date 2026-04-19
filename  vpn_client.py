@@ -441,3 +441,8 @@ vpn客户门端(_c)。断开连接()
 打印("示例：sudo python Wireguard_client.py")
     
     主要的()
+    if __name__ == "__main__":
+            vpn = VPNConfig()
+                print("=== 欢迎使用 VPN 客户端 ===")
+                    vpn.load_config()
+                    
